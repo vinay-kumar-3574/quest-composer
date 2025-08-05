@@ -1,10 +1,11 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useOpenAIChat } from "@/hooks/useOpenAIChat";
+import { toast } from "sonner";
 import { 
   MapPin, 
   Clock, 
@@ -28,6 +29,7 @@ const TourGuide = () => {
       timestamp: new Date()
     }
   ]);
+  const { sendMessage, isLoading } = useOpenAIChat();
 
   const mockItinerary = [
     {
@@ -63,8 +65,8 @@ const TourGuide = () => {
     { icon: <Camera className="h-5 w-5" />, label: "Photo Spots", color: "bg-purple-600" }
   ];
 
-  const handleSendMessage = () => {
-    if (!chatInput.trim()) return;
+  const handleSendMessage = async () => {
+    if (!chatInput.trim() || isLoading) return;
     
     const newMessage = {
       id: messages.length + 1,
@@ -74,18 +76,37 @@ const TourGuide = () => {
     };
     
     setMessages([...messages, newMessage]);
+    const currentInput = chatInput;
     setChatInput("");
     
-    // Simulate AI response
-    setTimeout(() => {
+    const systemPrompt = `You are an AI travel guide for Dubai. You are currently helping tourists who are visiting Dubai. 
+    Provide helpful information about:
+    - Local attractions and recommendations
+    - Restaurant suggestions
+    - Cultural tips and etiquette
+    - Navigation help
+    - Emergency information
+    - Budget-friendly options
+    - Photo spot recommendations
+    Be friendly, informative, and location-specific to Dubai.`;
+
+    try {
+      const result = await sendMessage.mutateAsync({
+        messages: [{ role: 'user', content: currentInput }],
+        systemPrompt
+      });
+
       const aiResponse = {
         id: messages.length + 2,
-        content: "That's a great question! Let me help you with that. Dubai has amazing attractions and I can provide you with detailed information about any location you're interested in.",
+        content: result.content,
         sender: 'ai' as const,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, aiResponse]);
-    }, 1000);
+    } catch (error) {
+      toast.error("Failed to get AI response. Please try again.");
+      console.error('Chat error:', error);
+    }
   };
 
   return (
@@ -206,6 +227,23 @@ const TourGuide = () => {
                 </div>
               </div>
             ))}
+            
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="max-w-3xl order-1">
+                  <Card className="p-4 bg-gray-100 border-gray-200">
+                    <div className="flex items-center space-x-2">
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                      </div>
+                      <span className="text-gray-500 text-sm">AI is thinking...</span>
+                    </div>
+                  </Card>
+                </div>
+              </div>
+            )}
           </div>
         </ScrollArea>
 
@@ -218,10 +256,12 @@ const TourGuide = () => {
               onChange={(e) => setChatInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
               className="flex-1"
+              disabled={isLoading}
             />
             <Button 
               onClick={handleSendMessage}
               className="bg-orange-600 hover:bg-orange-700 text-white"
+              disabled={isLoading}
             >
               <Send className="h-4 w-4" />
             </Button>

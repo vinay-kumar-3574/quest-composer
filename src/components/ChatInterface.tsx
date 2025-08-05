@@ -1,11 +1,11 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, ArrowLeft, Bot, User, Sparkles } from "lucide-react";
+import { Send, ArrowLeft, Bot, User } from "lucide-react";
 import { toast } from "sonner";
+import { useOpenAIChat } from "@/hooks/useOpenAIChat";
 
 interface Message {
   id: string;
@@ -30,7 +30,7 @@ export const ChatInterface = ({ initialInput, onTripParsed, onBack }: ChatInterf
     }
   ]);
   const [currentInput, setCurrentInput] = useState(initialInput);
-  const [isTyping, setIsTyping] = useState(false);
+  const { sendMessage, isLoading } = useOpenAIChat();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,7 +40,7 @@ export const ChatInterface = ({ initialInput, onTripParsed, onBack }: ChatInterf
   }, []);
 
   const handleSendMessage = async () => {
-    if (!currentInput.trim()) return;
+    if (!currentInput.trim() || isLoading) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -50,44 +50,40 @@ export const ChatInterface = ({ initialInput, onTripParsed, onBack }: ChatInterf
     };
 
     setMessages(prev => [...prev, userMessage]);
-    setIsTyping(true);
+    
+    const systemPrompt = `You are a helpful AI travel assistant. Help users plan their trips by:
+1. Extracting travel details (destination, dates, number of travelers)
+2. Providing travel advice and recommendations
+3. If you detect complete trip information (destination, dates, travelers), end your response with the exact phrase: "PARSE_TRIP_DETAILS"
+4. Be conversational, helpful, and enthusiastic about travel`;
 
-    // Simulate AI processing
-    setTimeout(() => {
-      const aiResponse = generateAIResponse(currentInput);
+    try {
+      const result = await sendMessage.mutateAsync({
+        messages: [{ role: 'user', content: currentInput }],
+        systemPrompt
+      });
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: aiResponse.content,
+        content: result.content,
         sender: 'ai',
         timestamp: new Date()
       };
       
       setMessages(prev => [...prev, aiMessage]);
-      setIsTyping(false);
 
-      if (aiResponse.shouldParse) {
+      // Check if AI wants to parse trip details
+      if (result.content.includes('PARSE_TRIP_DETAILS')) {
         setTimeout(() => {
           onTripParsed(currentInput);
         }, 2000);
       }
-    }, 1500);
+    } catch (error) {
+      toast.error("Failed to get AI response. Please try again.");
+      console.error('Chat error:', error);
+    }
 
     setCurrentInput("");
-  };
-
-  const generateAIResponse = (input: string) => {
-    // Simple AI simulation - in production, this would use GPT-4
-    if (input.toLowerCase().includes('dubai') || input.toLowerCase().includes('people') || input.toLowerCase().includes('october')) {
-      return {
-        content: "Perfect! I can see you're planning a trip to Dubai for 4 people from October 10-17. That sounds like an amazing adventure! Dubai has incredible attractions, luxury hotels, and fantastic dining. Let me parse your trip details and create a comprehensive plan for you...",
-        shouldParse: true
-      };
-    }
-    
-    return {
-      content: "I'd love to help you plan your trip! Could you please provide more details like your destination, travel dates, and number of travelers? For example: 'We are 4 people going to Dubai from October 10 to 17.'",
-      shouldParse: false
-    };
   };
 
   return (
@@ -157,7 +153,7 @@ export const ChatInterface = ({ initialInput, onTripParsed, onBack }: ChatInterf
                 </div>
               ))}
               
-              {isTyping && (
+              {isLoading && (
                 <div className="flex justify-start">
                   <div className="flex items-end space-x-3 max-w-3xl">
                     <div className="flex-shrink-0 p-2 rounded-full bg-gray-200 text-gray-700 mr-2">
@@ -192,11 +188,12 @@ export const ChatInterface = ({ initialInput, onTripParsed, onBack }: ChatInterf
                 onChange={(e) => setCurrentInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                 className="pr-12 py-3 border-gray-300 focus:border-orange-500 focus:ring-orange-500"
+                disabled={isLoading}
               />
               <Button
                 size="sm"
                 onClick={handleSendMessage}
-                disabled={!currentInput.trim() || isTyping}
+                disabled={!currentInput.trim() || isLoading}
                 className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-orange-600 hover:bg-orange-700 text-white px-3"
               >
                 <Send className="h-4 w-4" />
