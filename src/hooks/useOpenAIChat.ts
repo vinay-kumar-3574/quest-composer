@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Message {
@@ -29,7 +29,7 @@ export const useOpenAIChat = () => {
       return data;
     },
     onSuccess: (data) => {
-      if (data.content) {
+      if (data?.content) {
         setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
       }
     }

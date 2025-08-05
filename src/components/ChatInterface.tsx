@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, ArrowLeft, Bot, User } from "lucide-react";
 import { toast } from "sonner";
 import { useOpenAIChat } from "@/hooks/useOpenAIChat";
+import { ChatMessage } from "./ChatMessage";
 
 interface Message {
   id: string;
@@ -120,37 +122,7 @@ export const ChatInterface = ({ initialInput, onTripParsed, onBack }: ChatInterf
           <ScrollArea ref={scrollAreaRef} className="h-full pr-4">
             <div className="space-y-6">
               {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`flex max-w-3xl ${message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'} items-end space-x-3`}>
-                    <div className={`flex-shrink-0 p-2 rounded-full ${
-                      message.sender === 'user' 
-                        ? 'bg-orange-600 text-white ml-2' 
-                        : 'bg-gray-200 text-gray-700 mr-2'
-                    }`}>
-                      {message.sender === 'user' ? (
-                        <User className="h-4 w-4" />
-                      ) : (
-                        <Bot className="h-4 w-4" />
-                      )}
-                    </div>
-                    
-                    <Card className={`p-4 shadow-sm ${
-                      message.sender === 'user'
-                        ? 'bg-orange-600 text-white border-orange-600'
-                        : 'bg-white text-gray-900 border-gray-200'
-                    }`}>
-                      <p className="leading-relaxed">{message.content}</p>
-                      <span className={`text-xs mt-2 block ${
-                        message.sender === 'user' ? 'text-orange-100' : 'text-gray-500'
-                      }`}>
-                        {message.timestamp.toLocaleTimeString()}
-                      </span>
-                    </Card>
-                  </div>
-                </div>
+                <ChatMessage key={message.id} message={message} />
               ))}
               
               {isLoading && (
