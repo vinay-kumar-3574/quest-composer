@@ -1,6 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,15 +27,15 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
-            content: systemPrompt || 'You are a helpful AI travel assistant. Help users plan their trips, provide travel advice, and assist with travel-related questions.'
+            content: systemPrompt || 'You are a helpful AI travel assistant specialized in Dubai. Help users plan their trips, provide travel advice, and assist with travel-related questions. Be detailed, practical, and friendly.'
           },
           ...messages
         ],
-        max_tokens: 1500,
+        max_tokens: 2000,
         temperature: 0.7,
       }),
     })
@@ -44,6 +43,7 @@ serve(async (req) => {
     const data = await response.json()
     
     if (!response.ok) {
+      console.error('OpenAI API error:', data)
       throw new Error(data.error?.message || 'OpenAI API request failed')
     }
 
