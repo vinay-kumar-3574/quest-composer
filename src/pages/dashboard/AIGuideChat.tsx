@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, MapPin, Utensils, ShoppingBag, Camera, AlertTriangle } from 'lucide-react';
+import { Send, MapPin, Utensils, ShoppingBag, Camera, AlertTriangle, Sparkles } from 'lucide-react';
 import { useOpenAIChat } from '@/hooks/useOpenAIChat';
+import { useTripExtraction } from '@/hooks/useTripExtraction';
 import { toast } from 'sonner';
 
 interface Message {
@@ -22,7 +23,7 @@ const AIGuideChat = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      content: "Hi! I'm your AI travel guide for Dubai. I can help you with attractions, restaurants, navigation, cultural tips, and any travel questions. What would you like to explore today?",
+      content: "🌟 Welcome to your AI Travel Assistant! I'm here to help plan your perfect trip. Tell me about your travel plans - where do you want to go, when, and with how many people? I'll extract all the details and create a personalized experience for you!",
       sender: 'ai',
       timestamp: new Date(),
       type: 'welcome'
@@ -30,13 +31,15 @@ const AIGuideChat = () => {
   ]);
   
   const { sendMessage, isLoading } = useOpenAIChat();
+  const { extractTripData, getTripData } = useTripExtraction();
 
   const quickSuggestions = [
-    { icon: MapPin, text: "Best attractions near me", category: "attractions" },
-    { icon: Utensils, text: "Recommend local restaurants", category: "dining" },
-    { icon: ShoppingBag, text: "Where to shop in Dubai", category: "shopping" },
+    { icon: MapPin, text: "Best attractions for my destination", category: "attractions" },
+    { icon: Utensils, text: "Local restaurants I should try", category: "dining" },
+    { icon: ShoppingBag, text: "Shopping recommendations", category: "shopping" },
     { icon: Camera, text: "Instagram-worthy photo spots", category: "photography" },
-    { icon: AlertTriangle, text: "Cultural etiquette tips", category: "culture" },
+    { icon: AlertTriangle, text: "Cultural tips and etiquette", category: "culture" },
+    { icon: Sparkles, text: "Hidden gems and local secrets", category: "hidden" },
   ];
 
   const handleSendMessage = async (messageText?: string) => {
@@ -54,26 +57,26 @@ const AIGuideChat = () => {
     setMessages(prev => [...prev, newMessage]);
     setInput('');
 
-    const systemPrompt = `You are an expert AI travel guide for Dubai. You are helping tourists who are currently in Dubai.
+    // Extract trip data in background
+    try {
+      await extractTripData(currentInput);
+    } catch (error) {
+      console.log('Trip data extraction failed, continuing with chat');
+    }
+
+    const tripData = getTripData();
+    let contextualPrompt = `You are an expert AI travel guide. `;
     
-    Provide helpful, accurate, and detailed information about:
-    - Local attractions and hidden gems
-    - Restaurant recommendations with specific dishes to try
-    - Cultural tips and etiquette
-    - Navigation and transportation
-    - Shopping recommendations
-    - Emergency information
-    - Budget-friendly options
-    - Photo spot recommendations
-    - Current events and seasonal activities
+    if (tripData) {
+      contextualPrompt += `The user is planning a trip to ${tripData.destination} with ${tripData.travelers} people for ${tripData.duration}. `;
+    }
     
-    Always be friendly, informative, and specific to Dubai. Use clear formatting with bullet points or numbered lists when appropriate.
-    If asked about emergencies, provide both local emergency numbers and practical advice.`;
+    contextualPrompt += `Provide helpful, detailed, and personalized travel advice. Use emojis and clear formatting with bullet points or numbered lists when appropriate. Be enthusiastic and knowledgeable about travel.`;
 
     try {
       const result = await sendMessage.mutateAsync({
         messages: [{ role: 'user', content: currentInput }],
-        systemPrompt
+        systemPrompt: contextualPrompt
       });
 
       const aiResponse: Message = {
@@ -91,23 +94,32 @@ const AIGuideChat = () => {
     }
   };
 
+  const tripData = getTripData();
+
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col">
       <div className="mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">AI Travel Guide</h1>
-        <p className="text-gray-600">Get personalized recommendations and travel assistance</p>
+        <h1 className="text-2xl font-bold text-gray-900">AI Travel Assistant</h1>
+        <p className="text-gray-600">Get personalized recommendations for your journey</p>
+        {tripData && (
+          <div className="mt-2 p-3 bg-gradient-to-r from-orange-100 to-orange-200 rounded-lg">
+            <p className="text-sm font-medium text-orange-800">
+              🎯 Planning trip to <span className="font-bold">{tripData.destination}</span> for {tripData.travelers} travelers ({tripData.duration})
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 grid grid-cols-3 gap-6">
         {/* Quick Actions Panel */}
         <Card className="p-4">
-          <h3 className="font-semibold text-gray-900 mb-4">Quick Help</h3>
+          <h3 className="font-semibold text-gray-900 mb-4">✨ Quick Help</h3>
           <div className="space-y-3">
             {quickSuggestions.map((suggestion, index) => (
               <Button
                 key={index}
                 variant="outline"
-                className="w-full justify-start text-left h-auto p-3"
+                className="w-full justify-start text-left h-auto p-3 hover:bg-orange-50 hover:border-orange-300"
                 onClick={() => handleSendMessage(suggestion.text)}
                 disabled={isLoading}
               >
@@ -117,19 +129,27 @@ const AIGuideChat = () => {
             ))}
           </div>
           
-          <div className="mt-6 p-3 bg-orange-50 rounded-lg">
-            <h4 className="font-medium text-orange-800 mb-2">Current Location</h4>
-            <p className="text-sm text-orange-700">Dubai Mall Area</p>
-            <p className="text-xs text-orange-600">Downtown Dubai</p>
-          </div>
+          {tripData && (
+            <div className="mt-6 p-3 bg-blue-50 rounded-lg">
+              <h4 className="font-medium text-blue-800 mb-2">📍 Your Trip Details</h4>
+              <div className="text-xs text-blue-700 space-y-1">
+                <p><strong>Destination:</strong> {tripData.destination}</p>
+                <p><strong>Travelers:</strong> {tripData.travelers} people</p>
+                <p><strong>Duration:</strong> {tripData.duration}</p>
+                {tripData.startDate !== 'Not specified' && (
+                  <p><strong>Dates:</strong> {tripData.startDate}</p>
+                )}
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Chat Panel */}
         <Card className="col-span-2 flex flex-col">
-          <div className="p-4 border-b">
+          <div className="p-4 border-b bg-gradient-to-r from-orange-50 to-orange-100">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900">Chat with AI Guide</h3>
-              <Badge className="bg-green-100 text-green-800">Online</Badge>
+              <h3 className="font-semibold text-gray-900">🤖 AI Travel Assistant</h3>
+              <Badge className="bg-green-100 text-green-800">Online & Ready</Badge>
             </div>
           </div>
 
@@ -144,7 +164,7 @@ const AIGuideChat = () => {
                     <Card className={`p-4 ${
                       message.sender === 'user'
                         ? 'bg-orange-600 text-white border-orange-600'
-                        : 'bg-gray-50 text-gray-900 border-gray-200'
+                        : 'bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900 border-gray-200'
                     }`}>
                       <div className="space-y-2">
                         <p className="leading-relaxed whitespace-pre-wrap">{message.content}</p>
@@ -162,14 +182,14 @@ const AIGuideChat = () => {
               {isLoading && (
                 <div className="flex justify-start">
                   <div className="max-w-3xl order-1">
-                    <Card className="p-4 bg-gray-50 border-gray-200">
+                    <Card className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
                       <div className="flex items-center space-x-2">
                         <div className="flex space-x-1">
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                          <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce"></div>
+                          <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                          <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
                         </div>
-                        <span className="text-gray-500 text-sm">AI is thinking...</span>
+                        <span className="text-orange-700 text-sm">AI is crafting your perfect response...</span>
                       </div>
                     </Card>
                   </div>
@@ -178,10 +198,10 @@ const AIGuideChat = () => {
             </div>
           </ScrollArea>
 
-          <div className="p-4 border-t">
+          <div className="p-4 border-t bg-gray-50">
             <div className="flex space-x-2">
               <Input
-                placeholder="Ask me anything about Dubai..."
+                placeholder="Tell me about your travel plans or ask anything..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
@@ -190,12 +210,15 @@ const AIGuideChat = () => {
               />
               <Button 
                 onClick={() => handleSendMessage()}
-                className="bg-orange-600 hover:bg-orange-700 text-white"
+                className="bg-orange-600 hover:bg-orange-700 text-white px-6"
                 disabled={isLoading || !input.trim()}
               >
                 <Send className="h-4 w-4" />
               </Button>
             </div>
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              💡 Try: "I'm planning a trip to Paris with 2 friends for 5 days in March"
+            </p>
           </div>
         </Card>
       </div>

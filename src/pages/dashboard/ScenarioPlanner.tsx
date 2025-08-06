@@ -3,241 +3,238 @@ import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, CheckCircle, Clock, MapPin, Plane, Building } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { AlertTriangle, Zap, CheckCircle, Clock, MapPin, Sparkles, RefreshCw } from 'lucide-react';
 import { useOpenAIChat } from '@/hooks/useOpenAIChat';
+import { useTripExtraction } from '@/hooks/useTripExtraction';
 import { toast } from 'sonner';
 
 const ScenarioPlanner = () => {
-  const [activeScenarios, setActiveScenarios] = useState([]);
-  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
-  const { sendMessage } = useOpenAIChat();
-
-  const mockScenarios = [
+  const [scenarios, setScenarios] = useState([
     {
       id: 1,
-      type: 'attraction_closed',
-      title: 'Burj Khalifa Temporarily Closed',
-      description: 'High winds have caused temporary closure until 3 PM',
-      severity: 'medium',
-      affectedTime: '9:00 AM - 11:00 AM',
-      status: 'active'
+      title: "Flight Delay",
+      description: "Your flight is delayed by 3 hours",
+      status: "active",
+      solution: "",
+      isGenerating: false
     },
     {
       id: 2,
-      type: 'flight_delay',
-      title: 'Return Flight Delayed',
-      description: 'EK208 delayed by 2 hours due to technical issues',
-      severity: 'high',
-      affectedTime: 'Oct 17, 8:30 PM',
-      status: 'resolved'
+      title: "Attraction Closed",
+      description: "Main tourist attraction is closed unexpectedly",
+      status: "pending",
+      solution: "",
+      isGenerating: false
+    },
+    {
+      id: 3,
+      title: "Weather Change",
+      description: "Heavy rain forecasted for outdoor activities",
+      status: "pending", 
+      solution: "",
+      isGenerating: false
     }
-  ];
+  ]);
 
-  const generatePlanB = async (scenario: any) => {
-    setIsGeneratingPlan(true);
-    
+  const [customScenario, setCustomScenario] = useState('');
+  const { sendMessage } = useOpenAIChat();
+  const { getTripData } = useTripExtraction();
+
+  const generateSolution = async (scenarioId: number) => {
+    const tripData = getTripData();
+    const scenario = scenarios.find(s => s.id === scenarioId);
+    if (!scenario) return;
+
+    setScenarios(prev => prev.map(s => 
+      s.id === scenarioId ? { ...s, isGenerating: true } : s
+    ));
+
+    const systemPrompt = `You are a travel crisis management expert. For the travel scenario provided, give 3 practical alternative solutions. 
+
+${tripData ? `Trip context: ${tripData.travelers} travelers going to ${tripData.destination} for ${tripData.duration}` : ''}
+
+Format your response as:
+🎯 **Quick Solutions:**
+
+1. **Option 1:** [brief solution]
+2. **Option 2:** [brief solution]  
+3. **Option 3:** [brief solution]
+
+💡 **Pro Tip:** [helpful additional advice]
+
+Be specific, actionable, and consider the destination context.`;
+
     try {
-      const systemPrompt = `You are a crisis management travel assistant. When travel disruptions occur, provide immediate, practical alternative solutions including:
-      - Alternative activities or attractions nearby
-      - Rescheduling recommendations
-      - Budget adjustments if needed
-      - Transportation alternatives
-      - Backup reservations
-      - Time optimization strategies
-      
-      Always provide 2-3 specific alternatives with detailed steps.`;
-
-      const userPrompt = `Travel disruption: ${scenario.title}. ${scenario.description}. 
-      Original plan was affected during ${scenario.affectedTime}. 
-      Provide immediate alternative solutions for Dubai travelers.`;
-
       const result = await sendMessage.mutateAsync({
-        messages: [{ role: 'user', content: userPrompt }],
+        messages: [{ role: 'user', content: scenario.description }],
         systemPrompt
       });
 
-      toast.success("Alternative plan generated! Check your updated itinerary.");
-      
-      // Mock updating the scenario status
-      setActiveScenarios(prev => prev.map(s => 
-        s.id === scenario.id ? { ...s, planB: result.content, status: 'plan_ready' } : s
+      setScenarios(prev => prev.map(s => 
+        s.id === scenarioId ? { 
+          ...s, 
+          solution: result.content,
+          status: 'resolved',
+          isGenerating: false
+        } : s
       ));
-      
+
+      toast.success("AI has generated backup solutions!");
     } catch (error) {
-      toast.error("Failed to generate alternative plan. Please try again.");
-    } finally {
-      setIsGeneratingPlan(false);
+      toast.error("Failed to generate solutions. Please try again.");
+      setScenarios(prev => prev.map(s => 
+        s.id === scenarioId ? { ...s, isGenerating: false } : s
+      ));
     }
   };
 
-  const simulateScenario = (type: string) => {
-    const scenarios = {
-      weather: {
-        title: 'Unexpected Sandstorm Warning',
-        description: 'Dubai weather service issued sandstorm warning for next 4 hours',
-        severity: 'high',
-        affectedTime: 'Next 4 hours'
-      },
-      transport: {
-        title: 'Metro Line Disruption',
-        description: 'Red line service suspended between Dubai Mall and Burj Khalifa',
-        severity: 'medium',
-        affectedTime: '2:00 PM - 6:00 PM'
-      },
-      attraction: {
-        title: 'Dubai Aquarium Maintenance',
-        description: 'Unexpected maintenance closure at Dubai Mall Aquarium',
-        severity: 'low',
-        affectedTime: 'Rest of the day'
-      }
-    };
+  const addCustomScenario = async () => {
+    if (!customScenario.trim()) return;
 
     const newScenario = {
       id: Date.now(),
-      type,
-      ...scenarios[type],
-      status: 'active'
+      title: "Custom Scenario",
+      description: customScenario,
+      status: "pending" as const,
+      solution: "",
+      isGenerating: false
     };
 
-    setActiveScenarios(prev => [...prev, newScenario]);
-    toast.warning(`Scenario activated: ${newScenario.title}`);
+    setScenarios(prev => [...prev, newScenario]);
+    setCustomScenario('');
+    toast.success("Custom scenario added!");
   };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'resolved': return <CheckCircle className="h-5 w-5 text-green-600" />;
+      case 'active': return <AlertTriangle className="h-5 w-5 text-orange-600" />;
+      default: return <Clock className="h-5 w-5 text-gray-400" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'resolved': return 'bg-green-100 text-green-800';
+      case 'active': return 'bg-orange-100 text-orange-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const tripData = getTripData();
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">"What If..." Scenario Planner</h1>
-          <p className="text-gray-600">AI-powered backup plans for travel disruptions</p>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+            <Zap className="h-7 w-7 text-orange-600 mr-3" />
+            "What If..." Scenario Planner
+          </h1>
+          <p className="text-gray-600">AI-powered backup plans for every travel situation</p>
         </div>
-        <div className="flex space-x-2">
-          <Button 
-            variant="outline" 
-            onClick={() => simulateScenario('weather')}
-            className="text-orange-600 border-orange-600"
-          >
-            Simulate Weather Issue
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => simulateScenario('transport')}
-            className="text-blue-600 border-blue-600"
-          >
-            Simulate Transport Issue
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => simulateScenario('attraction')}
-            className="text-purple-600 border-purple-600"
-          >
-            Simulate Closure
-          </Button>
-        </div>
+        <Badge className="bg-blue-100 text-blue-800">
+          <Sparkles className="h-4 w-4 mr-1" />
+          AI-Enhanced
+        </Badge>
       </div>
 
-      {/* Active Scenarios */}
-      {activeScenarios.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900">Active Scenarios</h2>
-          {activeScenarios.map((scenario) => (
-            <Alert key={scenario.id} className={`border-l-4 ${
-              scenario.severity === 'high' ? 'border-red-500 bg-red-50' :
-              scenario.severity === 'medium' ? 'border-yellow-500 bg-yellow-50' :
-              'border-blue-500 bg-blue-50'
-            }`}>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 mb-1">{scenario.title}</h3>
-                    <p className="text-gray-700 mb-2">{scenario.description}</p>
-                    <div className="flex items-center space-x-4 text-sm text-gray-600">
-                      <div className="flex items-center space-x-1">
-                        <Clock className="h-4 w-4" />
-                        <span>Affected: {scenario.affectedTime}</span>
-                      </div>
-                      <Badge className={
-                        scenario.severity === 'high' ? 'bg-red-100 text-red-800' :
-                        scenario.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-blue-100 text-blue-800'
-                      }>
-                        {scenario.severity.toUpperCase()}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="ml-4">
-                    {scenario.status === 'active' && (
-                      <Button 
-                        onClick={() => generatePlanB(scenario)}
-                        disabled={isGeneratingPlan}
-                        className="bg-orange-600 hover:bg-orange-700"
-                      >
-                        Generate Plan B
-                      </Button>
-                    )}
-                    {scenario.status === 'plan_ready' && (
-                      <Badge className="bg-green-100 text-green-800">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Plan B Ready
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                
-                {scenario.planB && (
-                  <div className="mt-4 p-3 bg-white rounded border-l-2 border-green-500">
-                    <h4 className="font-medium text-green-800 mb-2">Alternative Plan:</h4>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{scenario.planB}</p>
-                  </div>
-                )}
-              </AlertDescription>
-            </Alert>
-          ))}
-        </div>
+      {/* Trip Context */}
+      {tripData && (
+        <Card className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <div className="flex items-center space-x-4">
+            <MapPin className="h-5 w-5 text-blue-600" />
+            <div>
+              <p className="font-medium text-blue-800">Planning scenarios for your trip to {tripData.destination}</p>
+              <p className="text-sm text-blue-600">{tripData.travelers} travelers • {tripData.duration}</p>
+            </div>
+          </div>
+        </Card>
       )}
 
-      {/* Historical Scenarios */}
+      {/* Add Custom Scenario */}
       <Card className="p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Previous Scenarios</h2>
-        <div className="space-y-3">
-          {mockScenarios.map((scenario) => (
-            <div key={scenario.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center space-x-3">
-                {scenario.type === 'attraction_closed' ? (
-                  <Building className="h-5 w-5 text-gray-500" />
-                ) : (
-                  <Plane className="h-5 w-5 text-gray-500" />
-                )}
-                <div>
-                  <h3 className="font-medium text-gray-900">{scenario.title}</h3>
-                  <p className="text-sm text-gray-600">{scenario.affectedTime}</p>
-                </div>
-              </div>
-              <Badge className={scenario.status === 'resolved' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}>
-                {scenario.status === 'resolved' ? 'Resolved' : 'Active'}
-              </Badge>
-            </div>
-          ))}
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Custom Scenario</h3>
+        <div className="flex space-x-3">
+          <Input
+            placeholder="Describe a potential travel scenario..."
+            value={customScenario}
+            onChange={(e) => setCustomScenario(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && addCustomScenario()}
+            className="flex-1"
+          />
+          <Button 
+            onClick={addCustomScenario}
+            className="bg-orange-600 hover:bg-orange-700"
+          >
+            <Zap className="h-4 w-4 mr-2" />
+            Add Scenario
+          </Button>
         </div>
       </Card>
 
-      {/* Resilience Score */}
-      <Card className="p-6 bg-gradient-to-r from-green-50 to-emerald-50">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Trip Resilience Score</h3>
-            <div className="flex items-center space-x-2">
-              <div className="text-3xl font-bold text-green-600">8.5</div>
-              <div className="text-sm text-gray-600">
-                <p>Excellent backup planning</p>
-                <p>2 scenarios handled successfully</p>
+      {/* Scenarios List */}
+      <div className="space-y-4">
+        {scenarios.map((scenario) => (
+          <Card key={scenario.id} className="p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-start space-x-3">
+                {getStatusIcon(scenario.status)}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">{scenario.title}</h3>
+                  <p className="text-gray-600 mt-1">{scenario.description}</p>
+                </div>
               </div>
+              <Badge className={getStatusColor(scenario.status)}>
+                {scenario.status.charAt(0).toUpperCase() + scenario.status.slice(1)}
+              </Badge>
             </div>
-          </div>
-          <div className="text-right">
-            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-2" />
-            <p className="text-sm font-medium text-green-700">Well Prepared</p>
+
+            {scenario.solution && (
+              <div className="mt-4 p-4 bg-green-50 rounded-lg border-l-4 border-green-400">
+                <h4 className="font-medium text-green-800 mb-2">AI-Generated Solutions:</h4>
+                <div className="text-sm text-green-700 whitespace-pre-wrap">
+                  {scenario.solution}
+                </div>
+              </div>
+            )}
+
+            {!scenario.solution && (
+              <Button
+                onClick={() => generateSolution(scenario.id)}
+                disabled={scenario.isGenerating}
+                className="mt-4 bg-blue-600 hover:bg-blue-700"
+              >
+                {scenario.isGenerating ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    AI is generating solutions...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Get AI Solutions
+                  </>
+                )}
+              </Button>
+            )}
+          </Card>
+        ))}
+      </div>
+
+      {/* AI Tips */}
+      <Card className="p-6 bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200">
+        <div className="flex items-start space-x-3">
+          <Sparkles className="h-6 w-6 text-orange-600 mt-1" />
+          <div>
+            <h3 className="font-semibold text-orange-800 mb-2">AI Travel Tips</h3>
+            <div className="text-sm text-orange-700 space-y-1">
+              <p>• Always have backup plans for major attractions and activities</p>
+              <p>• Keep digital copies of important documents in cloud storage</p>
+              <p>• Download offline maps and translation apps before traveling</p>
+              <p>• Research local emergency numbers and embassy contacts</p>
+            </div>
           </div>
         </div>
       </Card>

@@ -3,167 +3,231 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useNavigate } from 'react-router-dom';
 import { 
   MapPin, 
+  MessageCircle, 
   Calendar, 
   DollarSign, 
-  Clock,
-  Plane,
+  AlertTriangle, 
+  Plane, 
   Hotel,
-  MessageCircle,
-  AlertTriangle 
+  FileText,
+  Star,
+  TrendingUp,
+  Clock,
+  Users,
+  Sparkles
 } from 'lucide-react';
+import { useTripExtraction } from '@/hooks/useTripExtraction';
 
 const DashboardOverview = () => {
-  const tripData = {
-    destination: 'Dubai, UAE',
-    duration: '7 days',
-    budget: '$5,000',
-    spent: '$2,340',
-    currentDay: 3,
-    upcomingActivity: 'Burj Khalifa Visit'
-  };
+  const navigate = useNavigate();
+  const { getTripData } = useTripExtraction();
+  const tripData = getTripData();
 
   const quickActions = [
-    { icon: MessageCircle, label: 'Ask AI Guide', path: '/guide/chat', color: 'bg-blue-600' },
-    { icon: Calendar, label: 'View Itinerary', path: '/guide/itinerary', color: 'bg-green-600' },
-    { icon: DollarSign, label: 'Track Budget', path: '/guide/budget', color: 'bg-purple-600' },
-    { icon: AlertTriangle, label: 'Emergency SOS', path: '/guide/emergency', color: 'bg-red-600' },
+    {
+      title: 'AI Travel Assistant',
+      description: 'Chat with AI for instant travel help',
+      icon: MessageCircle,
+      color: 'bg-blue-100 text-blue-600',
+      path: '/guide/chat'
+    },
+    {
+      title: 'Smart Itinerary',
+      description: 'AI-powered daily plans',
+      icon: Calendar,
+      color: 'bg-green-100 text-green-600',
+      path: '/guide/itinerary'
+    },
+    {
+      title: 'Scenario Planner',
+      description: 'Plan B for every situation',
+      icon: MapPin,
+      color: 'bg-purple-100 text-purple-600',
+      path: '/guide/scenarios'
+    },
+    {
+      title: 'Budget Tracker',
+      description: 'Track expenses smartly',
+      icon: DollarSign,
+      color: 'bg-yellow-100 text-yellow-600',
+      path: '/guide/budget'
+    }
+  ];
+
+  const tripStats = [
+    {
+      title: 'Days to Go',
+      value: tripData?.startDate !== 'Not specified' 
+        ? Math.max(0, Math.ceil((new Date(tripData.startDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+        : '—',
+      icon: Clock,
+      color: 'text-orange-600'
+    },
+    {
+      title: 'Travelers',
+      value: tripData?.travelers || '—',
+      icon: Users,
+      color: 'text-blue-600'
+    },
+    {
+      title: 'Destination',
+      value: tripData?.destination.split(',')[0] || 'Not Set',
+      icon: MapPin,
+      color: 'text-green-600'
+    },
+    {
+      title: 'Duration',
+      value: tripData?.duration || '—',
+      icon: Calendar,
+      color: 'text-purple-600'
+    }
   ];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Welcome Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Trip Dashboard</h1>
-          <p className="text-gray-600">Welcome back! Here's your trip overview</p>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+            <Sparkles className="h-8 w-8 text-orange-600 mr-3" />
+            Welcome to Your Travel Dashboard
+          </h1>
+          <p className="text-gray-600 mt-1">
+            {tripData 
+              ? `Planning your amazing trip to ${tripData.destination}` 
+              : 'Start planning your next adventure with AI assistance'
+            }
+          </p>
         </div>
-        <Badge className="bg-green-100 text-green-800">Day {tripData.currentDay} of 7</Badge>
+        {!tripData && (
+          <Button 
+            onClick={() => navigate('/guide/chat')}
+            className="bg-orange-600 hover:bg-orange-700"
+          >
+            <MessageCircle className="h-4 w-4 mr-2" />
+            Start Planning
+          </Button>
+        )}
       </div>
 
-      {/* Trip Status Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="p-6">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 bg-orange-100 rounded-full">
-              <MapPin className="h-6 w-6 text-orange-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Destination</p>
-              <p className="text-xl font-bold text-gray-900">{tripData.destination}</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 bg-blue-100 rounded-full">
-              <Calendar className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Duration</p>
-              <p className="text-xl font-bold text-gray-900">{tripData.duration}</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 bg-green-100 rounded-full">
-              <DollarSign className="h-6 w-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Budget Used</p>
-              <p className="text-xl font-bold text-gray-900">{tripData.spent}</p>
-              <p className="text-xs text-gray-500">of {tripData.budget}</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 bg-purple-100 rounded-full">
-              <Clock className="h-6 w-6 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Next Activity</p>
-              <p className="text-lg font-bold text-gray-900">{tripData.upcomingActivity}</p>
-              <p className="text-xs text-gray-500">in 2 hours</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Quick Actions */}
-      <Card className="p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {quickActions.map((action, index) => (
-            <Button
-              key={index}
-              variant="outline"
-              className="h-20 flex-col space-y-2"
-              onClick={() => window.location.href = action.path}
-            >
-              <div className={`p-2 ${action.color} text-white rounded-full`}>
-                <action.icon className="h-5 w-5" />
+      {/* Trip Stats */}
+      {tripData && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {tripStats.map((stat, index) => (
+            <Card key={index} className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">{stat.title}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                </div>
+                <stat.icon className={`h-8 w-8 ${stat.color}`} />
               </div>
-              <span className="text-sm">{action.label}</span>
-            </Button>
+            </Card>
           ))}
         </div>
-      </Card>
+      )}
 
-      {/* Today's Schedule */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Today's Schedule</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border-l-4 border-orange-500">
-              <div>
-                <p className="font-medium">Burj Khalifa Visit</p>
-                <p className="text-sm text-gray-600">Downtown Dubai</p>
+      {/* Quick Actions */}
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">🚀 Quick Actions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {quickActions.map((action, index) => (
+            <Card 
+              key={index}
+              className="p-6 cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-105"
+              onClick={() => navigate(action.path)}
+            >
+              <div className="text-center space-y-4">
+                <div className={`p-3 rounded-full w-fit mx-auto ${action.color}`}>
+                  <action.icon className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">{action.title}</h3>
+                  <p className="text-sm text-gray-600 mt-1">{action.description}</p>
+                </div>
               </div>
-              <Badge>Current</Badge>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div>
-                <p className="font-medium">Dubai Mall Lunch</p>
-                <p className="text-sm text-gray-600">12:00 PM</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div>
-                <p className="font-medium">Dubai Fountain Show</p>
-                <p className="text-sm text-gray-600">3:00 PM</p>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Trip Stats</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Places Visited</span>
-              <span className="font-bold">8 / 15</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Budget Used</span>
-              <span className="font-bold">46.8%</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Photos Taken</span>
-              <span className="font-bold">127</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Days Remaining</span>
-              <span className="font-bold">4 days</span>
-            </div>
-          </div>
-        </Card>
+            </Card>
+          ))}
+        </div>
       </div>
+
+      {/* Recent Activity */}
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">📊 Dashboard Insights</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900">Travel Progress</h3>
+              <TrendingUp className="h-5 w-5 text-green-600" />
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Trip Planning</span>
+                <Badge className="bg-green-100 text-green-800">
+                  {tripData ? 'In Progress' : 'Not Started'}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Flight Booking</span>
+                <Badge variant="outline">Pending</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Hotel Booking</span>
+                <Badge variant="outline">Pending</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Itinerary Planning</span>
+                <Badge variant="outline">Ready</Badge>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900">AI Recommendations</h3>
+              <Star className="h-5 w-5 text-orange-600" />
+            </div>
+            <div className="space-y-3">
+              <div className="p-3 bg-orange-50 rounded-lg">
+                <p className="text-sm font-medium text-orange-800">💡 Pro Tip</p>
+                <p className="text-sm text-orange-700 mt-1">
+                  Start with our AI Travel Assistant to get personalized recommendations
+                </p>
+              </div>
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm font-medium text-blue-800">🎯 Smart Planning</p>
+                <p className="text-sm text-blue-700 mt-1">
+                  Use Scenario Planner for backup options during your trip
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      {/* Emergency Access */}
+      <Card className="p-6 bg-gradient-to-r from-red-50 to-red-100 border-red-200">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-red-800 flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2" />
+              Emergency SOS
+            </h3>
+            <p className="text-sm text-red-700 mt-1">
+              Quick access to emergency services and assistance
+            </p>
+          </div>
+          <Button 
+            onClick={() => navigate('/guide/emergency')}
+            className="bg-red-600 hover:bg-red-700 text-white"
+          >
+            Access SOS
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 };

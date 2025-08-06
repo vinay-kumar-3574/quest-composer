@@ -10,8 +10,10 @@ const DashboardLayout = () => {
       <DashboardNavbar />
       <div className="flex">
         <DashboardSidebar />
-        <main className="flex-1 ml-64 mt-16 p-6">
-          <Outlet />
+        <main className="flex-1 transition-all duration-300" style={{ marginLeft: '256px' }}>
+          <div className="p-6">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>
