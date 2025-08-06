@@ -17,8 +17,7 @@ const TourGuide = () => {
   return (
     <Routes>
       <Route path="/" element={<DashboardLayout />}>
-        <Route index element={<Navigate to="/guide" replace />} />
-        <Route path="" element={<DashboardOverview />} />
+        <Route index element={<DashboardOverview />} />
         <Route path="chat" element={<AIGuideChat />} />
         <Route path="itinerary" element={<SmartItinerary />} />
         <Route path="scenarios" element={<ScenarioPlanner />} />
