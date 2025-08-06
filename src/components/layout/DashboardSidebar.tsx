@@ -15,7 +15,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  Zap
+  Zap,
+  Plane,
+  Hotel
 } from 'lucide-react';
 
 const navItems = [
@@ -24,6 +26,8 @@ const navItems = [
   { icon: Calendar, label: 'Smart Itinerary', path: '/guide/itinerary' },
   { icon: Zap, label: 'Scenario Planner', path: '/guide/scenarios' },
   { icon: DollarSign, label: 'Budget Tracker', path: '/guide/budget' },
+  { icon: Plane, label: 'Flight Booking', path: '/guide/flights' },
+  { icon: Hotel, label: 'Hotel Booking', path: '/guide/hotels' },
   { icon: AlertTriangle, label: 'Emergency SOS', path: '/guide/emergency' },
   { icon: RefreshCw, label: 'Return Booking', path: '/guide/return-booking' },
   { icon: FileText, label: 'Trip Summary', path: '/guide/summary' },

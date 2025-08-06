@@ -18,38 +18,85 @@ import {
   Clock,
   Users,
   Sparkles,
-  Zap
+  Zap,
+  RefreshCw
 } from 'lucide-react';
 import { useTripExtraction } from '@/hooks/useTripExtraction';
+import { useOpenAIChat } from '@/hooks/useOpenAIChat';
+import { toast } from 'sonner';
 
 const DashboardOverview = () => {
   const navigate = useNavigate();
   const { getTripData } = useTripExtraction();
+  const { sendMessage } = useOpenAIChat();
   const [tripData, setTripData] = useState<any>(null);
+  const [aiInsights, setAiInsights] = useState<any>(null);
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
 
   useEffect(() => {
     const data = getTripData();
     setTripData(data);
+    if (data) {
+      generateAIInsights(data);
+    }
   }, [getTripData]);
+
+  const generateAIInsights = async (data: any) => {
+    setIsGeneratingInsights(true);
+    
+    const systemPrompt = `You are an expert travel advisor. Based on the trip data provided, generate personalized insights and recommendations. Return a JSON object with this structure:
+    {
+      "destinationHighlights": ["highlight1", "highlight2", "highlight3"],
+      "bestTimeToVisit": "description",
+      "culturalTips": ["tip1", "tip2", "tip3"],
+      "budgetRecommendations": "budget advice",
+      "weatherInfo": "weather description",
+      "travelProgress": {
+        "planningStatus": "status description",
+        "nextSteps": ["step1", "step2"],
+        "completionPercentage": 75
+      },
+      "smartRecommendations": ["rec1", "rec2", "rec3"],
+      "riskAssessment": "low/medium/high with explanation"
+    }`;
+
+    try {
+      const result = await sendMessage.mutateAsync({
+        messages: [{ 
+          role: 'user', 
+          content: `Generate insights for a trip to ${data.destination} with ${data.travelers} travelers for ${data.duration}. Start date: ${data.startDate}, Budget: ${data.budget || 'Not specified'}, Interests: ${data.interests?.join(', ') || 'General tourism'}`
+        }],
+        systemPrompt
+      });
+
+      const insights = JSON.parse(result.content);
+      setAiInsights(insights);
+    } catch (error) {
+      console.error('Failed to generate AI insights:', error);
+      toast.error('Failed to generate AI insights');
+    } finally {
+      setIsGeneratingInsights(false);
+    }
+  };
 
   const quickActions = [
     {
       title: 'AI Travel Assistant',
-      description: tripData ? `Get help with your ${tripData.destination} trip` : 'Chat with AI for instant travel help',
+      description: tripData ? `Get personalized help for your ${tripData.destination} trip` : 'Chat with AI for instant travel help',
       icon: MessageCircle,
       color: 'bg-blue-100 text-blue-600',
       path: '/guide/chat'
     },
     {
       title: 'Smart Itinerary',
-      description: tripData ? `Plan your ${tripData.duration} in ${tripData.destination.split(',')[0]}` : 'AI-powered daily plans',
+      description: tripData ? `AI-powered ${tripData.duration} plan for ${tripData.destination.split(',')[0]}` : 'AI-powered daily plans',
       icon: Calendar,
       color: 'bg-green-100 text-green-600',
       path: '/guide/itinerary'
     },
     {
       title: 'Scenario Planner',
-      description: tripData ? 'Backup plans for your trip' : 'Plan B for every situation',
+      description: tripData ? `Backup plans for ${tripData.destination}` : 'Plan B for every situation',
       icon: Zap,
       color: 'bg-purple-100 text-purple-600',
       path: '/guide/scenarios'
@@ -122,7 +169,7 @@ const DashboardOverview = () => {
         <div>
           <h1 className="text-4xl font-bold text-gray-900 flex items-center">
             <Sparkles className="h-10 w-10 text-orange-600 mr-4" />
-            Welcome to Your Travel Dashboard
+            Welcome to Your AI Travel Dashboard
           </h1>
           <p className="text-xl text-gray-600 mt-2">
             {tripData 
@@ -130,6 +177,11 @@ const DashboardOverview = () => {
               : 'Start planning your next adventure with AI assistance'
             }
           </p>
+          {aiInsights?.bestTimeToVisit && (
+            <p className="text-sm text-gray-500 mt-1">
+              💡 {aiInsights.bestTimeToVisit}
+            </p>
+          )}
         </div>
         {!tripData && (
           <Button 
@@ -140,6 +192,17 @@ const DashboardOverview = () => {
             Plan Your Trip
           </Button>
         )}
+        {tripData && (
+          <Button 
+            onClick={() => generateAIInsights(tripData)}
+            disabled={isGeneratingInsights}
+            variant="outline"
+            className="border-orange-600 text-orange-600"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isGeneratingInsights ? 'animate-spin' : ''}`} />
+            {isGeneratingInsights ? 'Generating...' : 'Refresh AI Insights'}
+          </Button>
+        )}
       </div>
 
       {/* Trip Stats */}
@@ -148,6 +211,11 @@ const DashboardOverview = () => {
           <h2 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center">
             <TrendingUp className="h-6 w-6 text-green-600 mr-2" />
             Your Trip Overview
+            {aiInsights && (
+              <Badge className="ml-3 bg-green-100 text-green-800">
+                AI Enhanced
+              </Badge>
+            )}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {getTripStats().map((stat, index) => (
@@ -163,6 +231,23 @@ const DashboardOverview = () => {
             ))}
           </div>
         </div>
+      )}
+
+      {/* AI Destination Highlights */}
+      {aiInsights?.destinationHighlights && (
+        <Card className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center">
+            <Star className="h-5 w-5 mr-2" />
+            AI-Curated Destination Highlights
+          </h3>
+          <div className="grid md:grid-cols-3 gap-3">
+            {aiInsights.destinationHighlights.map((highlight: string, index: number) => (
+              <div key={index} className="p-3 bg-white rounded-lg shadow-sm">
+                <p className="text-sm text-gray-700">✨ {highlight}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
       )}
 
       {/* Quick Actions */}
@@ -223,12 +308,19 @@ const DashboardOverview = () => {
         </div>
       )}
 
-      {/* Trip Progress */}
+      {/* Dynamic Travel Progress */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-6 border-0 bg-white/80 backdrop-blur-sm">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold text-gray-900">Travel Progress</h3>
-            <TrendingUp className="h-6 w-6 text-green-600" />
+            <div className="flex items-center space-x-2">
+              <TrendingUp className="h-6 w-6 text-green-600" />
+              {aiInsights?.travelProgress?.completionPercentage && (
+                <Badge className="bg-green-100 text-green-800">
+                  {aiInsights.travelProgress.completionPercentage}% Complete
+                </Badge>
+              )}
+            </div>
           </div>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -252,6 +344,16 @@ const DashboardOverview = () => {
               </Badge>
             </div>
           </div>
+          {aiInsights?.travelProgress?.nextSteps && (
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+              <p className="font-medium text-blue-800 mb-2">🎯 Next Steps:</p>
+              <ul className="text-sm text-blue-700 space-y-1">
+                {aiInsights.travelProgress.nextSteps.map((step: string, index: number) => (
+                  <li key={index}>• {step}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </Card>
 
         <Card className="p-6 border-0 bg-white/80 backdrop-blur-sm">
@@ -268,12 +370,18 @@ const DashboardOverview = () => {
                     Your {tripData.destination} trip details are ready for booking
                   </p>
                 </div>
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm font-medium text-blue-800">🎯 Next Step</p>
-                  <p className="text-sm text-blue-700 mt-1">
-                    Book your flights and hotels to lock in your travel dates
-                  </p>
-                </div>
+                {aiInsights?.smartRecommendations && aiInsights.smartRecommendations.map((rec: string, index: number) => (
+                  <div key={index} className="p-4 bg-blue-50 rounded-lg">
+                    <p className="text-sm font-medium text-blue-800">💡 AI Insight</p>
+                    <p className="text-sm text-blue-700 mt-1">{rec}</p>
+                  </div>
+                ))}
+                {aiInsights?.riskAssessment && (
+                  <div className="p-4 bg-yellow-50 rounded-lg">
+                    <p className="text-sm font-medium text-yellow-800">⚠️ Risk Assessment</p>
+                    <p className="text-sm text-yellow-700 mt-1">{aiInsights.riskAssessment}</p>
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -295,6 +403,23 @@ const DashboardOverview = () => {
         </Card>
       </div>
 
+      {/* Cultural Tips */}
+      {aiInsights?.culturalTips && (
+        <Card className="p-6 bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
+          <h3 className="text-lg font-semibold text-purple-900 mb-4 flex items-center">
+            <Sparkles className="h-5 w-5 mr-2" />
+            Cultural Tips for {tripData?.destination.split(',')[0]}
+          </h3>
+          <div className="grid md:grid-cols-3 gap-3">
+            {aiInsights.culturalTips.map((tip: string, index: number) => (
+              <div key={index} className="p-3 bg-white rounded-lg shadow-sm">
+                <p className="text-sm text-gray-700">🎭 {tip}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* Emergency Access */}
       <Card className="p-6 bg-gradient-to-r from-red-50 to-red-100 border-red-200 border-0">
         <div className="flex items-center justify-between">
@@ -304,7 +429,7 @@ const DashboardOverview = () => {
               Emergency SOS
             </h3>
             <p className="text-red-700 mt-1">
-              Quick access to emergency services and assistance while traveling
+              AI-powered emergency assistance and local emergency services for {tripData?.destination || 'your destination'}
             </p>
           </div>
           <Button 
