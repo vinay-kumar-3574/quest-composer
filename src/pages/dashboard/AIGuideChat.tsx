@@ -9,13 +9,21 @@ import { Send, MapPin, Utensils, ShoppingBag, Camera, AlertTriangle } from 'luci
 import { useOpenAIChat } from '@/hooks/useOpenAIChat';
 import { toast } from 'sonner';
 
+interface Message {
+  id: number;
+  content: string;
+  sender: 'user' | 'ai';
+  timestamp: Date;
+  type: string;
+}
+
 const AIGuideChat = () => {
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState([
+  const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
       content: "Hi! I'm your AI travel guide for Dubai. I can help you with attractions, restaurants, navigation, cultural tips, and any travel questions. What would you like to explore today?",
-      sender: 'ai' as const,
+      sender: 'ai',
       timestamp: new Date(),
       type: 'welcome'
     }
@@ -35,10 +43,10 @@ const AIGuideChat = () => {
     const currentInput = messageText || input;
     if (!currentInput.trim() || isLoading) return;
 
-    const newMessage = {
+    const newMessage: Message = {
       id: messages.length + 1,
       content: currentInput,
-      sender: 'user' as const,
+      sender: 'user',
       timestamp: new Date(),
       type: 'message'
     };
@@ -68,10 +76,10 @@ const AIGuideChat = () => {
         systemPrompt
       });
 
-      const aiResponse = {
+      const aiResponse: Message = {
         id: messages.length + 2,
         content: result.content,
-        sender: 'ai' as const,
+        sender: 'ai',
         timestamp: new Date(),
         type: 'response'
       };
